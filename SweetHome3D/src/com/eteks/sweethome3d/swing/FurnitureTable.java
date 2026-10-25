@@ -727,10 +727,33 @@ public class FurnitureTable extends JTable implements View, Printable {
    * Prints this component to make it fill <code>pageFormat</code> imageable size.
    */
   public int print(Graphics g, PageFormat pageFormat, int pageIndex) throws PrinterException {
-    // Create a printable column model from the column model of this table 
+    return print(g, pageFormat, pageIndex,
+        Collections.<HomePieceOfFurniture.SortableProperty>emptyList());
+  }
+
+  /**
+   * Prints this component to make it fill <code>pageFormat</code> imageable size,
+   * appending to the displayed columns the ones matching <code>additionalProperties</code>
+   * that aren't displayed. Displayed columns at screen aren't modified.
+   */
+  public int print(Graphics g, PageFormat pageFormat, int pageIndex,
+                   List<HomePieceOfFurniture.SortableProperty> additionalProperties) throws PrinterException {
+    // Create a printable column model from the column model of this table
     // with printable renderers for each column
     DefaultTableColumnModel printableColumnModel = new DefaultTableColumnModel();
     TableColumnModel columnModel = getColumnModel();
+    List<TableColumn> printedColumns = new ArrayList<TableColumn>();
+    for (int columnIndex = 0, n = columnModel.getColumnCount(); columnIndex < n; columnIndex++) {
+      printedColumns.add(columnModel.getColumn(columnIndex));
+    }
+    if (columnModel instanceof FurnitureTableColumnModel) {
+      for (HomePieceOfFurniture.SortableProperty property : additionalProperties) {
+        TableColumn additionalColumn = ((FurnitureTableColumnModel)columnModel).getAvailableColumn(property);
+        if (additionalColumn != null && !printedColumns.contains(additionalColumn)) {
+          printedColumns.add(additionalColumn);
+        }
+      }
+    }
     final DefaultTableCellRenderer defaultRenderer = new DefaultTableCellRenderer();
     defaultRenderer.setHorizontalAlignment(DefaultTableCellRenderer.CENTER);
     TableCellRenderer printableHeaderRenderer = new TableCellRenderer() {
@@ -750,8 +773,7 @@ public class FurnitureTable extends JTable implements View, Printable {
           return headerRendererLabel;
         }
       };
-    for (int columnIndex = 0, n = columnModel.getColumnCount(); columnIndex < n; columnIndex++) {
-      final TableColumn tableColumn = columnModel.getColumn(columnIndex);
+    for (final TableColumn tableColumn : printedColumns) {
       // Create a printable column from existing table column
       TableColumn printableColumn = new TableColumn();
       printableColumn.setIdentifier(tableColumn.getIdentifier());
@@ -1036,8 +1058,15 @@ public class FurnitureTable extends JTable implements View, Printable {
     }
 
     /**
-     * Adds a property change listener to home to update displayed columns list 
-     * from furniture visible properties. 
+     * Returns the column matching <code>property</code>, whether it's displayed or not.
+     */
+    public TableColumn getAvailableColumn(HomePieceOfFurniture.SortableProperty property) {
+      return this.availableColumns.get(property);
+    }
+
+    /**
+     * Adds a property change listener to home to update displayed columns list
+     * from furniture visible properties.
      */
     private void addHomeListener(final Home home) {
       home.addPropertyChangeListener(Home.Property.FURNITURE_VISIBLE_PROPERTIES, 
